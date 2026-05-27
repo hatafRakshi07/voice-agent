@@ -1,0 +1,37 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-dotenv==1.0.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Database
+motor==3.6.0
+pymongo==4.9.2
+
+# AI / LLM
+openai==1.57.0
+
+# Speech-to-Text
+deepgram-sdk==3.8.0
+
+# Text-to-Speech (ElevenLabs via httpx for reliability)
+httpx==0.28.1
+
+# Twilio
+twilio==9.3.7
+
+# WebSocket & async
+websockets==13.1
+aiofiles==24.1.0
+
+# Audio processing
+numpy==2.2.0
+soundfile>=0.12.1
+scipy>=1.13.0
+
+# Local voice cloning (Coqui XTTS-v2 — free, offline, no API key)
+TTS>=0.22.0
+
+# Utilities
+loguru==0.7.2
+python-multipart==0.0.18
