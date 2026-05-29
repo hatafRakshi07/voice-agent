@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     WHISPER_LANGUAGE: Optional[str] = "en"   # None = auto-detect
     WHISPER_DEVICE: str = "cpu"              # "cpu" or "cuda"
     WHISPER_COMPUTE_TYPE: str = "int8"       # "int8" | "float16" | "float32"
+    # Set to an absolute path to load a fine-tuned CTranslate2 model instead
+    WHISPER_CUSTOM_MODEL_PATH: Optional[str] = None
 
     # ── Local LLM (Ollama) ────────────────────────────────────────────────
     OLLAMA_HOST: str = "http://ollama:11434"  # service name in Docker

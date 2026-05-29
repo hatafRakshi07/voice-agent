@@ -16,7 +16,7 @@ async def connect_db():
     await _db.calls.create_index("start_time")
     await _db.conversations.create_index("call_sid")
     await _db.conversations.create_index("timestamp")
-    await _db.voice_profiles.create_index("elevenlabs_voice_id", unique=True)
+    await _db.voice_profiles.create_index("voice_id", unique=True)
 
     logger.info(f"MongoDB connected: {settings.MONGODB_DB_NAME}")
 

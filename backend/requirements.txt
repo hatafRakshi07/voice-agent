@@ -35,6 +35,18 @@ librosa>=0.10.0
 websockets>=13.1
 aiofiles>=24.1.0
 
+# ── Whisper fine-tuning ───────────────────────────────────────────────────────
+# datasets: HuggingFace datasets for building training/eval splits
+datasets>=2.16.0
+# evaluate + jiwer: Word Error Rate metric during training
+evaluate>=0.4.1
+jiwer>=3.0.3
+# accelerate: required by Seq2SeqTrainer
+accelerate>=0.27.0
+# ctranslate2: convert fine-tuned HF model → faster-whisper format
+# (already installed transitively by faster-whisper, listed here explicitly)
+ctranslate2>=4.0.0
+
 # ── Utilities ────────────────────────────────────────────────────────────────
 loguru==0.7.2
 python-multipart>=0.0.18

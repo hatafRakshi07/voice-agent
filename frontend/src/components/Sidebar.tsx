@@ -55,11 +55,21 @@ function IconCpu({ size = 24 }: { size?: number }) {
   );
 }
 
+function IconBrain({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.5 2A2.5 2.5 0 017 4.5v1A2.5 2.5 0 014.5 8H4a2 2 0 00-2 2v4a2 2 0 002 2h.5A2.5 2.5 0 017 18.5v1A2.5 2.5 0 009.5 22h5a2.5 2.5 0 002.5-2.5v-1a2.5 2.5 0 012.5-2.5H20a2 2 0 002-2v-4a2 2 0 00-2-2h-.5A2.5 2.5 0 0117 5.5v-1A2.5 2.5 0 0014.5 2h-5z" />
+    </svg>
+  );
+}
+
 /* ── Nav links ──────────────────────────────────── */
 const links = [
-  { href: "/",       label: "Dashboard", Icon: IconGrid  },
-  { href: "/calls",  label: "Call Logs", Icon: IconPhone },
-  { href: "/voices", label: "Voices",    Icon: IconMic   },
+  { href: "/",          label: "Dashboard", Icon: IconGrid  },
+  { href: "/calls",     label: "Call Logs", Icon: IconPhone },
+  { href: "/voices",    label: "Voices",    Icon: IconMic   },
+  { href: "/training",  label: "Training",  Icon: IconBrain },
 ];
 
 /* ── Component ──────────────────────────────────── */

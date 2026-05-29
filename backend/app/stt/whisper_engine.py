@@ -205,10 +205,17 @@ def get_whisper_engine(
     language: Optional[str] = "en",
     device: str = "cpu",
     compute_type: str = "int8",
+    force_reload: bool = False,
 ) -> WhisperEngine:
-    """Return or create the shared WhisperEngine singleton."""
+    """
+    Return (or create) the shared WhisperEngine singleton.
+
+    Pass ``force_reload=True`` to hot-swap the engine with new parameters,
+    e.g. after activating a fine-tuned model.  ``model_size`` may be a path
+    to a local CTranslate2 model directory produced by the training pipeline.
+    """
     global _instance
-    if _instance is None:
+    if _instance is None or force_reload:
         _instance = WhisperEngine(
             model_size=model_size,
             language=language,

@@ -3,13 +3,16 @@ voice_routes.py
 ────────────────
 REST endpoints for managing local XTTS voice clones.
 
-  GET    /api/voices              — list all locally cloned voices
-  POST   /api/voices/clone        — upload samples, create offline voice clone
-  POST   /api/voices/{id}/default — set as the default voice
-  DELETE /api/voices/{id}         — delete a cloned voice
+  GET    /api/voices                      — list all locally cloned voices
+  POST   /api/voices/clone                — upload samples, create offline voice clone
+  POST   /api/voices/{id}/default         — set as the default voice
+  POST   /api/voices/{id}/synthesize      — synthesize a test sentence, returns WAV
+  GET    /api/voices/{id}/synthesize      — same but via query param (easy browser test)
+  DELETE /api/voices/{id}                 — delete a cloned voice
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
+from fastapi.responses import Response
 
 from app.tts.xtts_engine import get_xtts_engine
 from app.utils.logger import logger
@@ -92,6 +95,58 @@ async def set_default_voice(voice_id: str):
     xtts.default_voice_id = voice_id
     logger.info(f"[Voices] Default voice set to {voice_id}")
     return {"message": f"Voice {voice_id} set as default"}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+@router.get("/{voice_id}/synthesize")
+@router.post("/{voice_id}/synthesize")
+async def synthesize_voice(
+    voice_id: str,
+    text: str = Query(
+        default="Hello! This is a test of your cloned voice. How does it sound?",
+        max_length=500,
+        description="Text to synthesise",
+    ),
+    language: str = Query(default="en", max_length=5),
+):
+    """
+    Synthesise a sentence with the specified cloned voice and return a WAV file.
+
+    GET  /api/voices/{voice_id}/synthesize?text=Hello
+    POST /api/voices/{voice_id}/synthesize?text=Hello
+
+    Use this to instantly verify that voice cloning is working correctly.
+    """
+    xtts = get_xtts_engine()
+
+    if not xtts.is_loaded:
+        raise HTTPException(
+            status_code=503,
+            detail="XTTS model is still loading — please retry in a moment",
+        )
+
+    voices = xtts.list_voices()
+    if not any(v["voice_id"] == voice_id for v in voices):
+        raise HTTPException(status_code=404, detail=f"Voice '{voice_id}' not found")
+
+    try:
+        wav_bytes = await xtts.synthesize(
+            text=text.strip(),
+            voice_id=voice_id,
+            language=language,
+        )
+    except Exception as exc:
+        logger.error(f"Synthesize failed for {voice_id}: {exc}")
+        raise HTTPException(status_code=500, detail=f"Synthesis failed: {exc}")
+
+    return Response(
+        content=wav_bytes,
+        media_type="audio/wav",
+        headers={
+            "Content-Disposition": f'attachment; filename="{voice_id}_test.wav"',
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

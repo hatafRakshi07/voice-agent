@@ -60,3 +60,28 @@ export interface ModelStatus {
   ollama: { ready: boolean; host: string; model: string; available_models: string[] };
 }
 
+// ── Whisper training ──────────────────────────────────────────────────────────
+
+export type TrainingStatus = "queued" | "running" | "done" | "failed";
+
+export interface TrainingJob {
+  job_id: string;
+  model_name: string;
+  status: TrainingStatus;
+  progress: number;        // 0-100
+  message: string;
+  base_model?: string;
+  language?: string;
+  ct2_path?: string;
+}
+
+export interface TrainedModel {
+  model_name: string;
+  base_model: string;
+  language: string;
+  sample_count: number;
+  epochs: number;
+  ct2_path: string;
+  job_id: string;
+}
+

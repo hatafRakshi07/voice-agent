@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database.mongodb import connect_db, disconnect_db
-from app.routes import call_routes, voice_routes, dashboard_routes, ws_routes
+from app.routes import call_routes, voice_routes, dashboard_routes, ws_routes, training_routes
 from app.utils.logger import logger
 
 
@@ -82,6 +82,7 @@ app.add_middleware(
 app.include_router(call_routes.router,      prefix="/api/calls",     tags=["Calls"])
 app.include_router(voice_routes.router,     prefix="/api/voices",    tags=["Voices"])
 app.include_router(dashboard_routes.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(training_routes.router,  prefix="/api/training",  tags=["Training"])
 
 # WebSocket route (browser voice pipeline)
 app.include_router(ws_routes.router, prefix="/ws", tags=["WebSocket"])

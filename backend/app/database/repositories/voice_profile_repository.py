@@ -32,11 +32,11 @@ class VoiceProfileRepository:
     async def set_default(self, voice_id: str) -> None:
         await self.col.update_many({}, {"$set": {"is_default": False}})
         await self.col.update_one(
-            {"elevenlabs_voice_id": voice_id}, {"$set": {"is_default": True}}
+            {"voice_id": voice_id}, {"$set": {"is_default": True}}
         )
 
-    async def delete(self, elevenlabs_voice_id: str) -> bool:
+    async def delete(self, voice_id: str) -> bool:
         result = await self.col.delete_one(
-            {"elevenlabs_voice_id": elevenlabs_voice_id}
+            {"voice_id": voice_id}
         )
         return result.deleted_count > 0

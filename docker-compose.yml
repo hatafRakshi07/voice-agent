@@ -65,6 +65,7 @@ services:
     volumes:
       - ./backend/logs:/app/logs
       - ./backend/voices:/app/voices       # persist cloned voices
+      - ./backend/models:/app/models       # persist fine-tuned models
       - whisper_cache:/root/.cache          # cache Whisper model download
       - tts_cache:/root/.local/share/tts   # cache XTTS-v2 model download
 

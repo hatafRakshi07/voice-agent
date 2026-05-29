@@ -1,4 +1,4 @@
-import type { Call, Conversation, DashboardStats, VoiceProfile, ModelStatus } from "./types";
+import type { Call, Conversation, DashboardStats, VoiceProfile, ModelStatus, TrainingJob, TrainedModel } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -41,6 +41,16 @@ export const setDefaultVoice = (voiceId: string): Promise<{ message: string }> =
 export const deleteVoice = (voiceId: string): Promise<{ message: string }> =>
   apiFetch(`/api/voices/${voiceId}`, { method: "DELETE" });
 
+export function getVoiceSynthesizeUrl(
+  voiceId: string,
+  text = "Hello! This is a test of your cloned voice. How does it sound?",
+  language = "en"
+): string {
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const params = new URLSearchParams({ text, language });
+  return `${base}/api/voices/${voiceId}/synthesize?${params}`;
+}
+
 export async function cloneVoice(
   name: string,
   description: string,
@@ -62,3 +72,47 @@ export async function cloneVoice(
 // ─── Model status ─────────────────────────────────────────────────────────────────────────────────
 export const getModelStatus = (): Promise<ModelStatus> =>
   apiFetch("/ws/status");
+// ─── Whisper training ────────────────────────────────────────────────────────────────────────────────────
+export async function startWhisperTraining(
+  file: File,
+  opts: {
+    model_name: string;
+    base_model: string;
+    language: string;
+    num_train_epochs: number;
+    learning_rate: number;
+    per_device_train_batch_size: number;
+    gradient_accumulation_steps: number;
+    warmup_steps: number;
+  }
+): Promise<TrainingJob> {
+  const form = new FormData();
+  form.append("dataset", file);
+  Object.entries(opts).forEach(([k, v]) => form.append(k, String(v)));
+  const res = await fetch(`${BASE}/api/training/whisper/start`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Training start failed: ${text}`);
+  }
+  return res.json();
+}
+
+export const getTrainingJobs = (): Promise<{ jobs: TrainingJob[]; count: number }> =>
+  apiFetch("/api/training/whisper/jobs");
+
+export const getTrainingJob = (jobId: string): Promise<TrainingJob> =>
+  apiFetch(`/api/training/whisper/jobs/${jobId}`);
+
+export const getTrainedModels = (): Promise<{ models: TrainedModel[]; count: number }> =>
+  apiFetch("/api/training/whisper/models");
+
+export const activateTrainedModel = (
+  modelName: string
+): Promise<{ message: string; model_path: string }> =>
+  apiFetch(`/api/training/whisper/activate/${modelName}`, { method: "POST" });
+
+export const deleteTrainedModel = (modelName: string): Promise<{ message: string }> =>
+  apiFetch(`/api/training/whisper/models/${modelName}`, { method: "DELETE" });
