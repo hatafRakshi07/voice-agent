@@ -85,7 +85,7 @@ export default function Sidebar() {
               VoiceAgent
             </p>
             <p className="text-[10px] text-slate-500 font-medium tracking-widest uppercase">
-              AI Call Center
+              Self-Hosted AI
             </p>
           </div>
         </div>

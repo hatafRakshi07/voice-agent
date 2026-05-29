@@ -3,8 +3,8 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "AI Voice Call Agent",
-  description: "Real-time AI voice call agent dashboard",
+  title: "Self-Hosted AI Voice Agent",
+  description: "Offline AI voice agent — Whisper + Ollama + XTTS-v2",
 };
 
 export default function RootLayout({

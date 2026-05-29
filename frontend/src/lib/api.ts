@@ -1,10 +1,4 @@
-import type {
-  Call,
-  Conversation,
-  DashboardStats,
-  ElevenLabsVoice,
-  VoiceProfile,
-} from "./types";
+import type { Call, Conversation, DashboardStats, VoiceProfile, ModelStatus } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -15,16 +9,16 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`API ${path} → ${res.status}: ${text}`);
+    throw new Error(`API ${path} -> ${res.status}: ${text}`);
   }
   return res.json() as Promise<T>;
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+// ─── Dashboard ────────────────────────────────────────────────────────────────────────────────
 export const getStats = (): Promise<DashboardStats> =>
   apiFetch("/api/dashboard/stats");
 
-// ─── Calls ────────────────────────────────────────────────────────────────────
+// ─── Calls ────────────────────────────────────────────────────────────────────────────────────
 export const getCalls = (skip = 0, limit = 50): Promise<Call[]> =>
   apiFetch(`/api/calls?skip=${skip}&limit=${limit}`);
 
@@ -37,11 +31,9 @@ export const getCall = (callSid: string): Promise<Call> =>
 export const getConversation = (callSid: string): Promise<Conversation> =>
   apiFetch(`/api/calls/${callSid}/conversation`);
 
-// ─── Voices ───────────────────────────────────────────────────────────────────
-export const getVoices = (): Promise<{
-  voices: ElevenLabsVoice[];
-  profiles: VoiceProfile[];
-}> => apiFetch("/api/voices");
+// ─── Voices (local XTTS) ─────────────────────────────────────────────────────────────────
+export const getVoices = (): Promise<{ voices: VoiceProfile[]; count: number }> =>
+  apiFetch("/api/voices");
 
 export const setDefaultVoice = (voiceId: string): Promise<{ message: string }> =>
   apiFetch(`/api/voices/${voiceId}/default`, { method: "POST" });
@@ -66,3 +58,7 @@ export async function cloneVoice(
   }
   return res.json();
 }
+
+// ─── Model status ─────────────────────────────────────────────────────────────────────────────────
+export const getModelStatus = (): Promise<ModelStatus> =>
+  apiFetch("/ws/status");

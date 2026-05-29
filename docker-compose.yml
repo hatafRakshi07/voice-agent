@@ -1,7 +1,28 @@
 version: "3.9"
 
 services:
-  # ── MongoDB ──────────────────────────────────────────────────────────────────
+
+  # ── Ollama (local LLM server) ─────────────────────────────────────────────────
+  # Serves Llama3, Mistral, or any GGUF model locally.
+  # First run: docker exec -it voice_agent_ollama ollama pull llama3
+  ollama:
+    image: ollama/ollama:latest
+    container_name: voice_agent_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Uncomment below to enable NVIDIA GPU passthrough:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ── MongoDB ───────────────────────────────────────────────────────────────────
   mongo:
     image: mongo:7
     container_name: voice_agent_mongo
@@ -25,18 +46,29 @@ services:
       dockerfile: Dockerfile
     container_name: voice_agent_backend
     restart: unless-stopped
-    env_file: ./backend/.env
+    env_file:
+      - path: ./backend/.env
+        required: false      # App works without .env (all defaults are local)
     environment:
       - MONGODB_URL=mongodb://mongo:27017
+      - OLLAMA_HOST=http://ollama:11434
+      - WHISPER_MODEL=base
+      - WHISPER_DEVICE=cpu
+      - COQUI_TOS_AGREED=1
     ports:
       - "8000:8000"
     depends_on:
       mongo:
         condition: service_healthy
+      ollama:
+        condition: service_started
     volumes:
       - ./backend/logs:/app/logs
+      - ./backend/voices:/app/voices       # persist cloned voices
+      - whisper_cache:/root/.cache          # cache Whisper model download
+      - tts_cache:/root/.local/share/tts   # cache XTTS-v2 model download
 
-  # ── Next.js Frontend ─────────────────────────────────────────────────────────
+  # ── Next.js Frontend ──────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -44,13 +76,14 @@ services:
     container_name: voice_agent_frontend
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
     ports:
       - "3000:3000"
     depends_on:
       - backend
 
-  # ── Nginx Reverse Proxy (TLS termination + WebSocket upgrade) ────────────────
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     container_name: voice_agent_nginx
@@ -67,3 +100,7 @@ services:
 
 volumes:
   mongo_data:
+  ollama_data:
+  whisper_cache:
+  tts_cache:
+

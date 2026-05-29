@@ -8,30 +8,33 @@ pydantic-settings==2.6.1
 motor==3.6.0
 pymongo==4.9.2
 
-# AI / LLM
-openai==1.57.0
+# ── Local Speech-to-Text (Whisper) ──────────────────────────────────────────
+# faster-whisper: CTranslate2-based Whisper, runs on CPU (int8) or GPU
+faster-whisper>=1.0.3
 
-# Speech-to-Text
-deepgram-sdk==3.8.0
+# WebRTC Voice Activity Detection
+webrtcvad-wheels>=2.0.14
 
-# Text-to-Speech (ElevenLabs via httpx for reliability)
+# ── Local LLM (Ollama REST client) ───────────────────────────────────────────
 httpx==0.28.1
+aiohttp==3.11.9
 
-# Twilio
-twilio==9.3.7
-
-# WebSocket & async
-websockets==13.1
-aiofiles==24.1.0
-
-# Audio processing
-numpy==2.2.0
-soundfile>=0.12.1
-scipy>=1.13.0
-
-# Local voice cloning (Coqui XTTS-v2 — free, offline, no API key)
+# ── Local TTS (Coqui XTTS-v2) ────────────────────────────────────────────────
+# TTS installs torch automatically; pin to CPU wheels in Dockerfile
+# transformers pinned: BeamSearchScorer removed in 4.40+, Coqui TTS requires <4.40
 TTS>=0.22.0
+transformers==4.39.3
 
-# Utilities
+# ── Audio processing ─────────────────────────────────────────────────────────
+numpy>=1.24.0
+soundfile>=0.12.1
+scipy>=1.11.0
+librosa>=0.10.0
+
+# ── Async / WebSocket ─────────────────────────────────────────────────────────
+websockets>=13.1
+aiofiles>=24.1.0
+
+# ── Utilities ────────────────────────────────────────────────────────────────
 loguru==0.7.2
-python-multipart==0.0.18
+python-multipart>=0.0.18

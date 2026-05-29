@@ -1,52 +1,51 @@
 from pydantic_settings import BaseSettings
-from typing import List
-import json
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
-    # OpenAI
-    OPENAI_API_KEY: str
-    OPENAI_MODEL: str = "gpt-4o"
+    # ── Local STT (faster-whisper) ─────────────────────────────────────────
+    # Model sizes: tiny, base, small, medium, large-v3
+    # Larger = more accurate but slower / more RAM
+    WHISPER_MODEL: str = "base"
+    WHISPER_LANGUAGE: Optional[str] = "en"   # None = auto-detect
+    WHISPER_DEVICE: str = "cpu"              # "cpu" or "cuda"
+    WHISPER_COMPUTE_TYPE: str = "int8"       # "int8" | "float16" | "float32"
 
-    # Deepgram
-    DEEPGRAM_API_KEY: str
+    # ── Local LLM (Ollama) ────────────────────────────────────────────────
+    OLLAMA_HOST: str = "http://ollama:11434"  # service name in Docker
+    OLLAMA_MODEL: str = "llama3"              # or "mistral", "llama3:8b", etc.
+    OLLAMA_TEMPERATURE: float = 0.7
+    OLLAMA_MAX_TOKENS: int = 400
 
-    # ElevenLabs (optional when TTS_BACKEND=local)
-    ELEVENLABS_API_KEY: str = ""
-    ELEVENLABS_DEFAULT_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
-    ELEVENLABS_MODEL_ID: str = "eleven_turbo_v2_5"
+    # ── Local TTS (Coqui XTTS-v2) ────────────────────────────────────────
+    LOCAL_DEFAULT_VOICE_ID: str = ""   # set to a cloned voice_id after first clone
+    TTS_LANGUAGE: str = "en"           # default synthesis language
 
-    # Local TTS (Coqui XTTS-v2)
-    TTS_BACKEND: str = "local"      # "local" | "elevenlabs"
-    LOCAL_DEFAULT_VOICE_ID: str = ""  # set after cloning your first voice
-
-    # Twilio
-    TWILIO_ACCOUNT_SID: str
-    TWILIO_AUTH_TOKEN: str
-    TWILIO_PHONE_NUMBER: str
-
-    # MongoDB
-    MONGODB_URL: str = "mongodb://localhost:27017"
+    # ── MongoDB ───────────────────────────────────────────────────────────
+    MONGODB_URL: str = "mongodb://mongo:27017"
     MONGODB_DB_NAME: str = "voice_agent"
 
-    # App
+    # ── App ───────────────────────────────────────────────────────────────
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
     BASE_URL: str = "http://localhost:8000"
     DEBUG: bool = False
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://frontend:3000",
+    ]
 
-    # Agent
-    AGENT_NAME: str = "Alex"
+    # ── Agent persona ─────────────────────────────────────────────────────
+    AGENT_NAME: str = "Nova"
     AGENT_SYSTEM_PROMPT: str = (
-        "You are Alex, a professional and friendly AI voice assistant. "
-        "You handle incoming phone calls and help callers with their questions. "
-        "Keep responses concise and natural for spoken conversation. "
-        "Be warm, empathetic, and helpful."
+        "You are Nova, a warm and knowledgeable AI voice assistant. "
+        "Keep responses concise and conversational — you are speaking aloud, "
+        "not writing text. Use short sentences. Be helpful and friendly."
     )
     MAX_CONVERSATION_TURNS: int = 20
 
-    model_config = {"env_file": ".env", "case_sensitive": True}
+    model_config = {"env_file": ".env", "case_sensitive": False, "extra": "ignore"}
 
 
 settings = Settings()

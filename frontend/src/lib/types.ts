@@ -1,4 +1,4 @@
-// Shared TypeScript types for the dashboard
+// Shared TypeScript types
 
 export type CallStatus =
   | "ringing"
@@ -44,19 +44,19 @@ export interface DashboardStats {
   avg_duration_seconds: number;
 }
 
+/** Local XTTS-v2 voice profile */
 export interface VoiceProfile {
-  _id?: string;
-  name: string;
-  elevenlabs_voice_id: string;
-  description?: string;
-  is_default: boolean;
-  created_at: string;
-}
-
-export interface ElevenLabsVoice {
   voice_id: string;
   name: string;
-  category?: string;
-  is_saved?: boolean;
-  preview_url?: string;
+  description?: string;
+  reference_wav?: string;
+  sample_count?: number;
 }
+
+/** Realtime model status */
+export interface ModelStatus {
+  whisper: { ready: boolean; model: string; device: string };
+  xtts: { ready: boolean };
+  ollama: { ready: boolean; host: string; model: string; available_models: string[] };
+}
+
