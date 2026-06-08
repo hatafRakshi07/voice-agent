@@ -11,12 +11,19 @@ aiosqlite>=0.20.0
 # faster-whisper: CTranslate2-based Whisper, runs on CPU (int8) or GPU
 faster-whisper>=1.0.3
 
-# WebRTC Voice Activity Detection
+# WebRTC Voice Activity Detection (default VAD)
 webrtcvad-wheels>=2.0.14
 
-# ── Local LLM (Ollama REST client) ───────────────────────────────────────────
+# Silero VAD (optional neural VAD — enable with USE_SILERO_VAD=true)
+silero-vad>=5.1
+
+# ── LLM Providers ────────────────────────────────────────────────────────────
+# Ollama REST client
 httpx==0.28.1
 aiohttp==3.11.9
+
+# Google Gemini API (LLM_PROVIDER=gemini)
+google-generativeai>=0.8.0
 
 # ── Local TTS (Coqui XTTS-v2) ────────────────────────────────────────────────
 # TTS installs torch automatically; pin to CPU wheels in Dockerfile
@@ -35,15 +42,10 @@ websockets>=13.1
 aiofiles>=24.1.0
 
 # ── Whisper fine-tuning ───────────────────────────────────────────────────────
-# datasets: HuggingFace datasets for building training/eval splits
 datasets>=2.16.0
-# evaluate + jiwer: Word Error Rate metric during training
 evaluate>=0.4.1
 jiwer>=3.0.3
-# accelerate: required by Seq2SeqTrainer
 accelerate>=0.27.0
-# ctranslate2: convert fine-tuned HF model → faster-whisper format
-# (already installed transitively by faster-whisper, listed here explicitly)
 ctranslate2>=4.0.0
 
 # ── Utilities ────────────────────────────────────────────────────────────────

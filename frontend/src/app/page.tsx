@@ -74,7 +74,8 @@ export default function HomePage() {
   }, []);
 
   const modelsReady = modelStatus
-    ? modelStatus.whisper.ready && modelStatus.xtts.ready && modelStatus.ollama.ready
+    ? modelStatus.whisper.ready && modelStatus.xtts.ready &&
+      (modelStatus.llm?.ready ?? modelStatus.ollama.ready)
     : false;
 
   return (
@@ -88,7 +89,9 @@ export default function HomePage() {
           </p>
           <h1 className="text-3xl font-extrabold grad-text">Voice Agent</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Offline · Whisper STT · Ollama LLM · Coqui XTTS-v2
+            Whisper STT ·{" "}
+            {modelStatus?.llm?.provider === "gemini" ? "Gemini LLM" : "Ollama LLM"} ·
+            Coqui XTTS-v2
           </p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border border-slate-700 text-slate-400">
@@ -102,8 +105,19 @@ export default function HomePage() {
         <div className="flex flex-wrap gap-2">
           {[
             { label: `Whisper (${modelStatus.whisper.model})`, ready: modelStatus.whisper.ready },
-            { label: `Ollama (${modelStatus.ollama.model})`, ready: modelStatus.ollama.ready },
+            {
+              label: modelStatus.llm?.provider === "gemini"
+                ? `Gemini (${modelStatus.llm.model})`
+                : `Ollama (${modelStatus.ollama.model})`,
+              ready: modelStatus.llm?.ready ?? modelStatus.ollama.ready,
+            },
             { label: "XTTS-v2", ready: modelStatus.xtts.ready },
+            ...(modelStatus.telephony_provider
+              ? [{ label: `Telephony: ${modelStatus.telephony_provider}`, ready: true }]
+              : []),
+            ...(modelStatus.vad
+              ? [{ label: `VAD: ${modelStatus.vad}`, ready: true }]
+              : []),
           ].map(({ label, ready }) => (
             <span
               key={label}

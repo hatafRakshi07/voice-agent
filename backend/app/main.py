@@ -8,13 +8,16 @@ from contextlib import asynccontextmanager
 from app.config import settings
 from app.database.sqlite import connect_db, disconnect_db
 from app.routes import call_routes, voice_routes, dashboard_routes, ws_routes, training_routes
-from app.routes import recording_routes
+from app.routes import recording_routes, android_gateway
 from app.utils.logger import logger
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("[STARTUP] Starting Self-Hosted AI Voice Agent...")
+    logger.info(f"[STARTUP] LLM provider: {settings.LLM_PROVIDER.upper()}")
+    logger.info(f"[STARTUP] Telephony provider: {settings.TELEPHONY_PROVIDER.upper()}")
+    logger.info(f"[STARTUP] VAD: {'Silero' if settings.USE_SILERO_VAD else 'WebRTC'}")
 
     # Ensure data and recordings directories exist
     Path(settings.SQLITE_PATH).parent.mkdir(parents=True, exist_ok=True)
@@ -23,16 +26,15 @@ async def lifespan(app: FastAPI):
     # SQLite (always available - no external service required)
     try:
         await connect_db()
-        logger.info("[STARTUP] SQLite connected v")
+        logger.info("[STARTUP] SQLite connected ✓")
     except Exception as exc:
         logger.error(f"[STARTUP] SQLite failed: {exc}")
 
     # Pre-load ML models in background so first request isn't slow
     asyncio.create_task(_preload_models())
 
-    # Start Asterisk FastAGI server (disabled if FASTAGI_ENABLED=false)
-    if settings.FASTAGI_ENABLED:
-        asyncio.create_task(_run_fastagi())
+    # Start telephony provider
+    asyncio.create_task(_start_telephony_provider())
 
     yield
 
@@ -44,7 +46,7 @@ async def lifespan(app: FastAPI):
 
 
 async def _preload_models() -> None:
-    """Load Whisper + XTTS-v2 in background at startup."""
+    """Load Whisper + XTTS-v2 (+ Silero VAD if enabled) in background at startup."""
     from app.stt.whisper_engine import get_whisper_engine  # noqa: PLC0415
     from app.tts.xtts_engine import get_xtts_engine        # noqa: PLC0415
 
@@ -68,24 +70,49 @@ async def _preload_models() -> None:
     except Exception as exc:
         logger.error(f"[STARTUP] XTTS load failed: {exc}")
 
+    # Silero VAD (optional)
+    if settings.USE_SILERO_VAD:
+        from app.services.vad_service import load_vad_if_enabled  # noqa: PLC0415
+        await load_vad_if_enabled()
 
-async def _run_fastagi() -> None:
-    """Start the Asterisk FastAGI TCP server."""
+
+async def _start_telephony_provider() -> None:
+    """Start the configured telephony provider."""
+    provider_name = settings.TELEPHONY_PROVIDER.lower().strip()
+
     try:
-        from app.telephony.fastagi_server import start_fastagi_server  # noqa: PLC0415
-        await start_fastagi_server()
+        if provider_name == "android":
+            from app.telephony.android_gateway_provider import AndroidGatewayProvider  # noqa: PLC0415
+            provider = AndroidGatewayProvider()
+
+        elif provider_name == "twilio":
+            from app.telephony.twilio_provider import TwilioProvider  # noqa: PLC0415
+            provider = TwilioProvider()
+
+        else:
+            # Default: asterisk
+            if provider_name != "asterisk":
+                logger.warning(
+                    f"[STARTUP] Unknown TELEPHONY_PROVIDER='{provider_name}' — "
+                    "falling back to 'asterisk'"
+                )
+            from app.telephony.asterisk_provider import AsteriskProvider  # noqa: PLC0415
+            provider = AsteriskProvider()
+
+        await provider.start()
+
     except Exception as exc:
-        logger.error(f"[STARTUP] FastAGI server failed: {exc}")
+        logger.error(f"[STARTUP] Telephony provider '{provider_name}' failed: {exc}")
 
 
 app = FastAPI(
     title="Self-Hosted AI Voice Agent",
     description=(
-        "Fully offline AI voice assistant - "
-        "Whisper STT + Ollama LLM + Coqui XTTS-v2 TTS + Asterisk PBX. "
-        "No external APIs required."
+        "Fully offline AI voice agent — "
+        "Whisper STT + Gemini/Ollama LLM + Coqui XTTS-v2 TTS. "
+        "Supports Asterisk PBX and Android SIM gateway telephony."
     ),
-    version="3.0.0",
+    version="4.0.0",
     lifespan=lifespan,
 )
 
@@ -98,39 +125,46 @@ app.add_middleware(
 )
 
 # HTTP routes
-app.include_router(call_routes.router,      prefix="/api/calls",      tags=["Calls"])
-app.include_router(voice_routes.router,     prefix="/api/voices",     tags=["Voices"])
-app.include_router(dashboard_routes.router, prefix="/api/dashboard",  tags=["Dashboard"])
-app.include_router(training_routes.router,  prefix="/api/training",   tags=["Training"])
-app.include_router(recording_routes.router, prefix="/api/recordings", tags=["Recordings"])
+app.include_router(call_routes.router,         prefix="/api/calls",      tags=["Calls"])
+app.include_router(voice_routes.router,        prefix="/api/voices",     tags=["Voices"])
+app.include_router(dashboard_routes.router,    prefix="/api/dashboard",  tags=["Dashboard"])
+app.include_router(training_routes.router,     prefix="/api/training",   tags=["Training"])
+app.include_router(recording_routes.router,    prefix="/api/recordings", tags=["Recordings"])
+app.include_router(android_gateway.router,     prefix="/api/android",    tags=["Android Gateway"])
 
-# WebSocket route (browser voice pipeline)
-app.include_router(ws_routes.router, prefix="/ws", tags=["WebSocket"])
+# WebSocket routes (browser + Android)
+app.include_router(ws_routes.router,           prefix="/ws",             tags=["WebSocket"])
+# Android gateway WebSocket: WS /ws/android/{call_id}
+app.include_router(android_gateway.ws_router,  prefix="/ws/android",     tags=["Android WS"])
 
 
 @app.get("/health", tags=["Health"])
 async def health_check():
+    from app.services.llm_service import get_llm_client  # noqa: PLC0415
     from app.stt.whisper_engine import get_whisper_engine  # noqa: PLC0415
     from app.tts.xtts_engine import get_xtts_engine        # noqa: PLC0415
-    from app.llm.ollama_client import get_ollama_client    # noqa: PLC0415
 
     whisper_ready = get_whisper_engine().is_loaded
     xtts_ready    = get_xtts_engine().is_loaded
-    ollama_ready  = await get_ollama_client(
-        host=settings.OLLAMA_HOST, model=settings.OLLAMA_MODEL
-    ).is_available()
+    llm           = get_llm_client()
+    llm_ready     = await llm.is_available()
 
     return {
         "status": "healthy",
         "service": "Self-Hosted AI Voice Agent",
-        "version": "3.0.0",
+        "version": "4.0.0",
         "models": {
             "whisper": whisper_ready,
             "xtts": xtts_ready,
-            "ollama": ollama_ready,
+            "llm": {
+                "provider": settings.LLM_PROVIDER,
+                "ready": llm_ready,
+            },
         },
         "telephony": {
+            "provider": settings.TELEPHONY_PROVIDER,
             "fastagi_enabled": settings.FASTAGI_ENABLED,
             "fastagi_port": settings.FASTAGI_PORT,
         },
+        "vad": "silero" if settings.USE_SILERO_VAD else "webrtc",
     }

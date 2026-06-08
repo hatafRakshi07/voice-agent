@@ -10,15 +10,26 @@ class Settings(BaseSettings):
     WHISPER_COMPUTE_TYPE: str = "int8"
     WHISPER_CUSTOM_MODEL_PATH: Optional[str] = None
 
+    # ── LLM Provider selection ────────────────────────────────────────────
+    # "ollama"  → local Ollama server (default, fully offline)
+    # "gemini"  → Google Gemini API (requires GEMINI_API_KEY)
+    LLM_PROVIDER: str = "ollama"
+
     # ── Local LLM (Ollama) ────────────────────────────────────────────────
     OLLAMA_HOST: str = "http://ollama:11434"
     OLLAMA_MODEL: str = "llama3"
     OLLAMA_TEMPERATURE: float = 0.7
     OLLAMA_MAX_TOKENS: int = 400
 
+    # ── Google Gemini API ─────────────────────────────────────────────────
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+
     # ── Local TTS (Coqui XTTS-v2) ────────────────────────────────────────
     LOCAL_DEFAULT_VOICE_ID: str = ""
     TTS_LANGUAGE: str = "en"
+    VOICE_SAMPLE_PATH: str = ""          # path to a reference WAV for default voice
+    XTTS_MODEL: str = "tts_models/multilingual/multi-dataset/xtts_v2"
 
     # ── SQLite ────────────────────────────────────────────────────────────
     SQLITE_PATH: str = "data/voice_agent.db"
@@ -26,10 +37,25 @@ class Settings(BaseSettings):
     # ── Recordings ────────────────────────────────────────────────────────
     RECORDINGS_DIR: str = "recordings"
 
+    # ── Telephony provider ────────────────────────────────────────────────
+    # "asterisk" → Asterisk FastAGI (local PBX, default)
+    # "android"  → Android SIM gateway via WebSocket
+    # "twilio"   → Twilio Media Streams (stub, not yet implemented)
+    TELEPHONY_PROVIDER: str = "asterisk"
+
     # ── Asterisk FastAGI ──────────────────────────────────────────────────
     FASTAGI_ENABLED: bool = True
     FASTAGI_HOST: str = "0.0.0.0"
     FASTAGI_PORT: int = 4573
+
+    # ── Android SIM Gateway ───────────────────────────────────────────────
+    ANDROID_GATEWAY_SECRET: str = ""     # shared secret for Android app auth
+    ANDROID_GATEWAY_URL: str = ""        # URL of the Android gateway (if remote)
+
+    # ── Silero VAD ────────────────────────────────────────────────────────
+    USE_SILERO_VAD: bool = False         # True = neural Silero VAD, False = WebRTC VAD
+    SILERO_VAD_THRESHOLD: float = 0.5
+    SILERO_MODEL: str = "silero_vad"
 
     # ── App ───────────────────────────────────────────────────────────────
     APP_HOST: str = "0.0.0.0"

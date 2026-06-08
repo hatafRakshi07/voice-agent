@@ -1,6 +1,8 @@
 # 🤖 AI Voice Call Agent
 
-A **production-ready**, real-time AI phone call agent that answers incoming calls, understands speech, generates intelligent replies with GPT-4o, and responds in a cloned human voice — all with sub-second latency.
+A **production-ready**, real-time AI phone call agent that answers incoming calls, understands speech, generates intelligent replies, and responds in a cloned human voice.
+
+Supports **fully offline operation** (Ollama + Whisper + XTTS-v2) or **cloud LLM** (Google Gemini API — free tier).
 
 ---
 
@@ -8,22 +10,23 @@ A **production-ready**, real-time AI phone call agent that answers incoming call
 
 ```
 Caller
-  │  (PSTN)
+  │
   ▼
-Twilio Phone Number
-  │  POST /api/twilio/voice  →  TwiML (connect Media Stream)
-  │  WSS  /api/twilio/stream/{call_sid}
+Telephony Layer  (choose one)
+  ├── Asterisk PBX  ←→  FastAGI server (port 4573)
+  └── Android SIM Gateway  ←→  WS /ws/android/{call_id}
+  │
   ▼
 FastAPI Backend
-  ├── Deepgram (STT)     μ-law 8 kHz → real-time transcript
-  ├── OpenAI GPT-4o      transcript → conversational reply
-  └── ElevenLabs (TTS)   reply → μ-law 8 kHz audio stream
+  ├── Whisper STT     float32 16kHz → real-time transcript
+  ├── Gemini / Ollama transcript → conversational reply (streaming)
+  └── Coqui XTTS-v2  reply → cloned WAV audio (sentence-by-sentence)
   │
   ▼
-MongoDB              call logs, conversation turns, voice profiles
+SQLite              call logs, conversation turns, voice profiles
   │
   ▼
-Next.js Dashboard    live monitoring, call history, voice management
+Next.js Dashboard   live monitoring, call history, voice management
 ```
 
 ---
@@ -32,172 +35,163 @@ Next.js Dashboard    live monitoring, call history, voice management
 
 | Feature | Implementation |
 |---|---|
-| Real-time call handling | Twilio Media Streams + FastAPI WebSocket |
-| Speech-to-text | Deepgram Nova-2 (μ-law 8 kHz, no conversion) |
-| LLM conversation | OpenAI GPT-4o with rolling context window |
-| Text-to-speech | ElevenLabs Turbo v2.5 (ulaw_8000 output) |
-| Voice cloning | ElevenLabs Instant Voice Clone API |
-| Interruption handling | Energy-based VAD + Twilio `clear` event |
+| Real-time call handling | Asterisk FastAGI or Android WS gateway |
+| Speech-to-text | faster-whisper (local, CPU/GPU) |
+| LLM conversation | **Gemini API** (free tier) **or** Ollama (offline) |
+| Text-to-speech | Coqui XTTS-v2 (local voice cloning) |
+| Voice Activity Detection | WebRTC VAD or **Silero VAD** (neural) |
+| Interruption handling | VAD + pipeline cancellation |
 | Conversation memory | Sliding window (configurable turns) |
-| Call summaries | GPT-4o post-call summarisation |
-| Database | MongoDB via Motor (async) |
+| Database | SQLite (zero-config) |
 | Dashboard | Next.js 14 + Tailwind CSS |
-| Production deploy | Docker Compose + Nginx (TLS + WS upgrade) |
 
 ---
 
 ## Tech Stack
 
 - **Backend**: Python 3.11, FastAPI, uvicorn
-- **STT**: Deepgram Nova-2
-- **LLM**: OpenAI GPT-4o
-- **TTS / Voice Cloning**: ElevenLabs Turbo v2.5
-- **Telephony**: Twilio Media Streams
-- **Database**: MongoDB + Motor
+- **STT**: faster-whisper (CTranslate2, CPU int8)
+- **LLM**: Google Gemini API *or* Ollama (llama3, mistral, etc.)
+- **TTS / Voice Cloning**: Coqui XTTS-v2
+- **VAD**: WebRTC VAD (default) or Silero VAD (neural)
+- **Telephony**: Asterisk 20 FastAGI *or* Android SIM gateway
+- **Database**: SQLite (aiosqlite)
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **Infra**: Docker Compose, Nginx
 
 ---
 
-## Quick Start (Local Dev)
+## Quick Start
 
-### Prerequisites
-
-- Python 3.11+
-- Node.js 20+
-- MongoDB (local or Atlas)
-- [ngrok](https://ngrok.com) (to expose localhost to Twilio)
-- Accounts: [Twilio](https://twilio.com), [OpenAI](https://platform.openai.com), [Deepgram](https://deepgram.com), [ElevenLabs](https://elevenlabs.io)
-
-### 1. Clone & configure
+### Option A — Docker Compose (Fully Offline, Recommended)
 
 ```bash
-git clone <this-repo>
-cd "voice assitant"
-cp backend/.env.example backend/.env
-# Edit backend/.env and fill in all API keys
+# 1. Pull Ollama model
+docker compose up -d ollama
+docker exec -it voice_agent_ollama ollama pull llama3
+
+# 2. Start everything
+docker compose up --build -d
 ```
 
-### 2. Backend
+Frontend → http://localhost:3000 | Backend → http://localhost:8000
+
+### Option B — Gemini API (Free Tier, Simpler Setup)
+
+Get a free key at https://aistudio.google.com/app/apikey, then:
+
+```bash
+cp backend/.env.example backend/.env
+# Set in backend/.env:
+#   LLM_PROVIDER=gemini
+#   GEMINI_API_KEY=your_key_here
+```
+
+No Ollama needed. Gemini free tier: 15 RPM, 1M tokens/day.
+
+---
+
+## Local Dev Setup
+
+### Backend
 
 ```bash
 cd backend
 python -m venv .venv
-# Windows:  .venv\Scripts\activate
-# macOS/Linux:  source .venv/bin/activate
+.venv\Scripts\activate   # Windows
 pip install -r requirements.txt
+cp .env.example .env     # edit with your settings
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Frontend
+### Frontend
 
 ```bash
 cd frontend
 npm install
-npm run dev          # → http://localhost:3000
+npm run dev   # → http://localhost:3000
 ```
-
-### 4. Expose backend with ngrok
-
-```bash
-ngrok http 8000
-# Copy the HTTPS URL, e.g. https://abc123.ngrok.io
-```
-
-Set in `backend/.env`:
-```
-BASE_URL=https://abc123.ngrok.io
-```
-
-### 5. Configure Twilio
-
-1. Go to your Twilio phone number settings
-2. Set **Voice → A call comes in → Webhook** to:
-   ```
-   https://abc123.ngrok.io/api/twilio/voice
-   ```
-3. Set **Call status changes** to:
-   ```
-   https://abc123.ngrok.io/api/twilio/status
-   ```
-
-### 6. Make a test call
-
-Call your Twilio number. The agent will:
-1. Answer and greet you
-2. Transcribe everything you say (Deepgram)
-3. Reply intelligently (GPT-4o)
-4. Speak back in the configured ElevenLabs voice
-
----
-
-## Production Deploy (Docker)
-
-```bash
-# 1. Build and start all services
-docker compose up --build -d
-
-# 2. Place TLS certificates in nginx/certs/
-#    fullchain.pem + privkey.pem
-
-# 3. Update nginx/nginx.conf server_name with your domain
-
-# 4. Restart nginx
-docker compose restart nginx
-```
-
----
-
-## Voice Cloning
-
-1. Open the dashboard → **Voices** tab
-2. Click **Clone New Voice**
-3. Upload 1–25 clear audio samples (WAV/MP3, 1–3 min total)
-4. Give the voice a name and click **Clone Voice**
-5. Once cloned, click **Set Default** to use it for all calls
-
-You can also set a per-call voice by storing `voice_id` on the Call record.
 
 ---
 
 ## Environment Variables
 
-| Variable | Description |
-|---|---|
-| `OPENAI_API_KEY` | OpenAI API key |
-| `OPENAI_MODEL` | Model name (default: `gpt-4o`) |
-| `DEEPGRAM_API_KEY` | Deepgram API key |
-| `ELEVENLABS_API_KEY` | ElevenLabs API key |
-| `ELEVENLABS_DEFAULT_VOICE_ID` | Voice ID used for TTS |
-| `ELEVENLABS_MODEL_ID` | TTS model (default: `eleven_turbo_v2_5`) |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_PHONE_NUMBER` | Your Twilio phone number |
-| `MONGODB_URL` | MongoDB connection string |
-| `BASE_URL` | Public HTTPS URL (for TwiML WS URL) |
-| `AGENT_NAME` | Agent's name spoken in greeting |
-| `AGENT_SYSTEM_PROMPT` | System prompt for GPT-4o |
-| `MAX_CONVERSATION_TURNS` | Conversation memory window |
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_PROVIDER` | `ollama` | `ollama` or `gemini` |
+| `GEMINI_API_KEY` | *(empty)* | Google AI Studio key |
+| `GEMINI_MODEL` | `gemini-1.5-flash` | Gemini model |
+| `OLLAMA_HOST` | `http://ollama:11434` | Ollama server |
+| `OLLAMA_MODEL` | `llama3` | Model name |
+| `WHISPER_MODEL` | `base` | `tiny`/`base`/`small`/`medium` |
+| `TELEPHONY_PROVIDER` | `asterisk` | `asterisk` or `android` |
+| `ANDROID_GATEWAY_SECRET` | *(empty)* | Shared secret for Android app |
+| `USE_SILERO_VAD` | `false` | Enable neural Silero VAD |
+| `SILERO_VAD_THRESHOLD` | `0.5` | Silero confidence threshold |
+| `LOCAL_DEFAULT_VOICE_ID` | *(empty)* | Default XTTS voice |
+| `AGENT_NAME` | `Nova` | Agent's spoken name |
+| `AGENT_SYSTEM_PROMPT` | *(Nova persona)* | LLM system prompt |
+
+See [backend/.env.example](backend/.env.example) for all variables.
+
+---
+
+## Android SIM Gateway
+
+When `TELEPHONY_PROVIDER=android`, the backend accepts calls from an Android phone via WebSocket:
+
+1. Android app calls `POST /api/android/call-start` → gets `call_id` + WebSocket URL
+2. Android app connects `WS /ws/android/{call_id}`
+3. Android streams PCM audio (int16, 16 kHz) → server returns WAV chunks
+4. Call ends: `POST /api/android/call-end`
+
+**Security**: Set `ANDROID_GATEWAY_SECRET` in `.env` to authenticate the Android app.
+
+---
+
+## Telephony (Asterisk)
+
+See [telephony/asterisk/conf/pjsip.conf](telephony/asterisk/conf/pjsip.conf) for SIP trunk configuration.
+
+For Indian numbers, use Plivo or Exotel as SIP trunk providers and fill in:
+- `YOUR_SIP_USERNAME`, `YOUR_SIP_PASSWORD`, `YOUR_SIP_SERVER`
+
+---
+
+## Voice Cloning
+
+1. Open dashboard → **Voices** tab
+2. Upload 6–30 seconds of clean speech (WAV/MP3)
+3. Set as default → all calls use that voice
 
 ---
 
 ## Project Structure
 
 ```
-voice assitant/
+voice-clone/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                  FastAPI app + lifespan
-│   │   ├── config.py                Pydantic settings
-│   │   ├── routes/
-│   │   │   ├── twilio_routes.py     Webhook + WebSocket
-│   │   │   ├── call_routes.py       Call log API
-│   │   │   ├── voice_routes.py      Voice clone API
-│   │   │   └── dashboard_routes.py  Stats + SSE
+│   │   ├── llm/
+│   │   │   ├── ollama_client.py      Ollama LLM client
+│   │   │   └── gemini_client.py      ★ Gemini API client (NEW)
 │   │   ├── services/
-│   │   │   ├── call_handler.py      ★ Core audio pipeline
-│   │   │   ├── stt_service.py       Deepgram STT
-│   │   │   ├── llm_service.py       OpenAI GPT-4o
+│   │   │   ├── llm_service.py        ★ LLM factory (NEW)
+│   │   │   ├── conversation_pipeline.py ★ Unified pipeline (NEW)
+│   │   │   └── vad_service.py        ★ Silero VAD (NEW)
+│   │   ├── routes/
+│   │   │   └── android_gateway.py    ★ Android gateway endpoints (NEW)
+│   │   └── telephony/
+│   │       ├── base_provider.py      ★ Abstract telephony (NEW)
+│   │       ├── asterisk_provider.py  ★ Asterisk wrapper (NEW)
+│   │       ├── android_gateway_provider.py ★ Android (NEW)
+│   │       └── twilio_provider.py    ★ Twilio stub (NEW)
+├── frontend/
+│   └── src/app/page.tsx              ★ Updated provider status display
+├── telephony/asterisk/conf/
+│   └── pjsip.conf                    Indian SIP trunk config
+└── PROJECT_MIGRATION_PLAN.md         ★ Migration analysis
+```
+
 │   │   │   ├── tts_service.py       ElevenLabs TTS
 │   │   │   └── context_manager.py   Conversation memory
 │   │   ├── models/                  Pydantic models

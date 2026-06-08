@@ -76,7 +76,18 @@ export interface VoiceProfile {
 export interface ModelStatus {
   whisper: { ready: boolean; model: string; device: string };
   xtts: { ready: boolean };
+  /** Active LLM provider status */
+  llm: {
+    provider: "ollama" | "gemini" | string;
+    ready: boolean;
+    model: string;
+    api_key_set?: boolean;   // Gemini only
+    host?: string;            // Ollama only
+  };
+  /** Kept for backward compatibility */
   ollama: { ready: boolean; host: string; model: string; available_models: string[] };
+  telephony_provider?: string;
+  vad?: "silero" | "webrtc";
 }
 
 export interface RecordingFile {

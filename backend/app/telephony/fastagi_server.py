@@ -30,10 +30,10 @@ from app.config import settings
 from app.database.sqlite import get_db
 from app.database.repositories.call_repository import CallRepository
 from app.database.repositories.conversation_repository import ConversationRepository
-from app.llm.ollama_client import get_ollama_client
 from app.memory.conversation_store import ConversationSession
 from app.models.call import Call, CallStatus
 from app.models.conversation import ConversationTurn
+from app.services.llm_service import get_llm_client
 from app.stt.whisper_engine import get_whisper_engine
 from app.tts.xtts_engine import get_xtts_engine
 from app.utils.logger import logger
@@ -178,7 +178,7 @@ class FastAGIHandler(asyncio.Protocol):
 
         # Get ML singletons (already loaded at startup)
         whisper = get_whisper_engine()
-        ollama  = get_ollama_client(host=settings.OLLAMA_HOST, model=settings.OLLAMA_MODEL)
+        ollama  = get_llm_client()
         xtts    = get_xtts_engine()
 
         # Per-call conversation memory

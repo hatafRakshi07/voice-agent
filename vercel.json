@@ -1,0 +1,13 @@
+{
+  "build": {
+    "env": {
+      "PYTHON_PACKAGE_MANAGER": "pip"
+    }
+  },
+  "env": {
+    "PYTHON_PACKAGE_MANAGER": "pip"
+  },
+  "buildCommand": "cd backend && pip install -r requirements.txt",
+  "installCommand": "pip install -r backend/requirements.txt",
+  "framework": null
+}

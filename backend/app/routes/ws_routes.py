@@ -13,8 +13,8 @@ import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import settings
-from app.llm.ollama_client import get_ollama_client
 from app.memory.conversation_store import get_conversation_store
+from app.services.llm_service import get_llm_client
 from app.stt.whisper_engine import get_whisper_engine
 from app.tts.xtts_engine import get_xtts_engine
 from app.utils.logger import logger
@@ -31,14 +31,11 @@ def _get_services():
         device=settings.WHISPER_DEVICE,
         compute_type=settings.WHISPER_COMPUTE_TYPE,
     )
-    ollama = get_ollama_client(
-        host=settings.OLLAMA_HOST,
-        model=settings.OLLAMA_MODEL,
-    )
+    llm = get_llm_client()
     xtts = get_xtts_engine(
         default_voice_id=settings.LOCAL_DEFAULT_VOICE_ID or None,
     )
-    return whisper, ollama, xtts
+    return whisper, llm, xtts
 
 
 # ── WebSocket voice endpoint ───────────────────────────────────────────────────
@@ -52,7 +49,7 @@ async def voice_websocket(websocket: WebSocket):
     VAD state and conversation history.
     """
     store = get_conversation_store()
-    whisper, ollama, xtts = _get_services()
+    whisper, llm, xtts = _get_services()
 
     # Create a new session for this connection
     session = await store.create_session(
@@ -63,7 +60,7 @@ async def voice_websocket(websocket: WebSocket):
     pipeline = AudioPipeline(
         session=session,
         whisper=whisper,
-        ollama=ollama,
+        ollama=llm,
         xtts=xtts,
     )
 
@@ -84,10 +81,44 @@ async def voice_websocket(websocket: WebSocket):
 
 @router.get("/status")
 async def get_status():
-    """Return model readiness for all local AI components."""
-    whisper, ollama, xtts = _get_services()
-    ollama_ok = await ollama.is_available()
-    ollama_models = await ollama.list_models() if ollama_ok else []
+    """Return model readiness for all AI components (provider-aware)."""
+    from app.llm.gemini_client import GeminiClient  # noqa: PLC0415
+    from app.llm.ollama_client import OllamaClient  # noqa: PLC0415
+
+    whisper, llm, xtts = _get_services()
+    provider = settings.LLM_PROVIDER.lower()
+
+    # Build provider-specific status block
+    if provider == "gemini" or isinstance(llm, GeminiClient):
+        llm_ok = await llm.is_available()
+        llm_status = {
+            "provider": "gemini",
+            "ready": llm_ok,
+            "model": settings.GEMINI_MODEL,
+            "api_key_set": bool(settings.GEMINI_API_KEY),
+        }
+        # Keep ollama block with zeros for backward compat
+        ollama_status = {
+            "ready": False,
+            "host": settings.OLLAMA_HOST,
+            "model": settings.OLLAMA_MODEL,
+            "available_models": [],
+        }
+    else:
+        ollama_ok = await llm.is_available()
+        ollama_models = await llm.list_models() if ollama_ok else []
+        llm_status = {
+            "provider": "ollama",
+            "ready": ollama_ok,
+            "model": settings.OLLAMA_MODEL,
+            "host": settings.OLLAMA_HOST,
+        }
+        ollama_status = {
+            "ready": ollama_ok,
+            "host": settings.OLLAMA_HOST,
+            "model": settings.OLLAMA_MODEL,
+            "available_models": ollama_models,
+        }
 
     return {
         "whisper": {
@@ -98,12 +129,11 @@ async def get_status():
         "xtts": {
             "ready": xtts.is_loaded,
         },
-        "ollama": {
-            "ready": ollama_ok,
-            "host": settings.OLLAMA_HOST,
-            "model": settings.OLLAMA_MODEL,
-            "available_models": ollama_models,
-        },
+        "llm": llm_status,
+        # ollama key preserved for backward compatibility with frontend
+        "ollama": ollama_status,
+        "telephony_provider": settings.TELEPHONY_PROVIDER,
+        "vad": "silero" if settings.USE_SILERO_VAD else "webrtc",
     }
 
 

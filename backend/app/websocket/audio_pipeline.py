@@ -42,8 +42,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from app.audio.processor import base64_to_float32, wav_bytes_to_base64
 from app.config import settings
-from app.llm.ollama_client import OllamaClient
 from app.memory.conversation_store import ConversationSession
+from app.services.llm_service import LLMClient
 from app.stt.whisper_engine import WhisperEngine
 from app.tts.xtts_engine import XTTSEngine
 from app.utils.logger import logger
@@ -60,7 +60,7 @@ class AudioPipeline:
         self,
         session: ConversationSession,
         whisper: WhisperEngine,
-        ollama: OllamaClient,
+        ollama: LLMClient,
         xtts: XTTSEngine,
     ):
         self.session = session
