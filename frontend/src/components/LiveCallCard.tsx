@@ -54,10 +54,10 @@ export default function LiveCallCard({ call }: { call: Call }) {
 
       {/* Caller info */}
       <div className="relative mb-4">
-        <p className="text-white font-bold text-lg leading-tight">{call.from_number}</p>
+        <p className="text-white font-bold text-lg leading-tight">{call.phone_number}</p>
         <p className="text-slate-500 text-xs mt-0.5 flex items-center gap-1">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          {call.to_number}
+          {call.direction === "outbound" ? "outbound" : "inbound"}
         </p>
       </div>
 

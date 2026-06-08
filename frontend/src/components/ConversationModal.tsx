@@ -39,11 +39,11 @@ export default function ConversationModal({ call, onClose }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getConversation(call.call_sid)
+    getConversation(call.call_id)
       .then(setConv)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [call.call_sid]);
+  }, [call.call_id]);
 
   return (
     <div
@@ -67,7 +67,7 @@ export default function ConversationModal({ call, onClose }: Props) {
             </div>
             <div>
               <h2 className="font-bold text-white text-sm">Conversation Transcript</h2>
-              <p className="text-xs text-slate-500 mt-0.5">{call.from_number} · {call.call_sid.slice(0, 20)}…</p>
+              <p className="text-xs text-slate-500 mt-0.5">{call.phone_number} · {call.call_id.slice(0, 20)}…</p>
             </div>
           </div>
           <button
@@ -103,7 +103,7 @@ export default function ConversationModal({ call, onClose }: Props) {
           ) : conv?.turns.length === 0 ? (
             <p className="text-center text-slate-500 py-10">No transcript available.</p>
           ) : (
-            conv?.turns.map((t) => <TurnBubble key={t._id} turn={t} />)
+            conv?.turns.map((t, i) => <TurnBubble key={t.id ?? i} turn={t} />)
           )}
         </div>
 

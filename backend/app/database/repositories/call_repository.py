@@ -1,88 +1,144 @@
-from datetime import datetime
+"""
+call_repository.py  (SQLite)
+────────────────────────────
+CRUD + analytics for the `calls` table.
+"""
+
+from datetime import datetime, timezone
 from typing import Optional
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from bson import ObjectId
+import aiosqlite
 
 from app.models.call import Call, CallStatus
 
 
+def _row_to_call(row: aiosqlite.Row) -> Call:
+    d = dict(row)
+    d["status"] = CallStatus(d["status"])
+    return Call(**d)
+
+
 class CallRepository:
-    def __init__(self, db: AsyncIOMotorDatabase):
-        self.col = db.calls
+    def __init__(self, db: aiosqlite.Connection):
+        self.db = db
 
-    # ─── Write ───────────────────────────────────────────────────────────────
+    # ── Write ──────────────────────────────────────────────────────────────────
 
-    async def create(self, call: Call) -> str:
-        doc = call.model_dump(exclude={"id"}, by_alias=False)
-        result = await self.col.insert_one(doc)
-        return str(result.inserted_id)
+    async def create(self, call: Call) -> int:
+        """Insert a new call record; returns the row id."""
+        sql = """
+            INSERT OR IGNORE INTO calls
+                (call_id, phone_number, direction, status, voice_id, start_time)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """
+        async with self.db.execute(
+            sql,
+            (
+                call.call_id,
+                call.phone_number,
+                call.direction,
+                call.status.value,
+                call.voice_id,
+                call.start_time or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            ),
+        ) as cur:
+            await self.db.commit()
+            return cur.lastrowid or 0
 
     async def update_status(
-        self, call_sid: str, status: CallStatus, **extra
+        self, call_id: str, status: CallStatus, **extra
     ) -> None:
-        await self.col.update_one(
-            {"call_sid": call_sid},
-            {"$set": {"status": status.value, **extra}},
-            upsert=True,
+        fields = ["status = ?"]
+        values: list = [status.value]
+        for k, v in extra.items():
+            fields.append(f"{k} = ?")
+            values.append(v)
+        values.append(call_id)
+        await self.db.execute(
+            f"UPDATE calls SET {', '.join(fields)} WHERE call_id = ?",
+            values,
         )
+        await self.db.commit()
 
-    async def increment_turn_count(self, call_sid: str) -> None:
-        await self.col.update_one(
-            {"call_sid": call_sid}, {"$inc": {"turn_count": 1}}
+    async def increment_turn_count(self, call_id: str) -> None:
+        await self.db.execute(
+            "UPDATE calls SET turn_count = turn_count + 1 WHERE call_id = ?",
+            (call_id,),
         )
+        await self.db.commit()
 
     async def complete_call(
-        self, call_sid: str, summary: Optional[str] = None
+        self,
+        call_id: str,
+        end_time: str,
+        duration_seconds: int,
+        recording_path: Optional[str] = None,
+        summary: Optional[str] = None,
     ) -> None:
-        end_time = datetime.utcnow()
-        doc = await self.col.find_one({"call_sid": call_sid})
-        duration = 0
-        if doc and doc.get("start_time"):
-            duration = int((end_time - doc["start_time"]).total_seconds())
-
-        await self.col.update_one(
-            {"call_sid": call_sid},
-            {
-                "$set": {
-                    "status": CallStatus.COMPLETED.value,
-                    "end_time": end_time,
-                    "duration_seconds": duration,
-                    "summary": summary,
-                }
-            },
+        await self.db.execute(
+            """UPDATE calls
+               SET status = ?, end_time = ?, duration_seconds = ?,
+                   recording_path = ?, summary = ?
+               WHERE call_id = ?""",
+            (
+                CallStatus.COMPLETED.value,
+                end_time,
+                duration_seconds,
+                recording_path,
+                summary,
+                call_id,
+            ),
         )
+        await self.db.commit()
 
-    # ─── Read ─────────────────────────────────────────────────────────────────
+    # ── Read ───────────────────────────────────────────────────────────────────
 
-    async def get_by_call_sid(self, call_sid: str) -> Optional[Call]:
-        doc = await self.col.find_one({"call_sid": call_sid})
-        return _to_call(doc) if doc else None
+    async def get_by_call_id(self, call_id: str) -> Optional[Call]:
+        async with self.db.execute(
+            "SELECT * FROM calls WHERE call_id = ?", (call_id,)
+        ) as cur:
+            row = await cur.fetchone()
+            return _row_to_call(row) if row else None
 
-    async def list_calls(
-        self, skip: int = 0, limit: int = 50
-    ) -> list[Call]:
-        cursor = self.col.find().sort("start_time", -1).skip(skip).limit(limit)
-        return [_to_call(d) async for d in cursor]
+    async def list_calls(self, skip: int = 0, limit: int = 50) -> list[Call]:
+        async with self.db.execute(
+            "SELECT * FROM calls ORDER BY start_time DESC LIMIT ? OFFSET ?",
+            (limit, skip),
+        ) as cur:
+            rows = await cur.fetchall()
+            return [_row_to_call(r) for r in rows]
 
     async def get_active_calls(self) -> list[Call]:
-        cursor = self.col.find({"status": CallStatus.IN_PROGRESS.value})
-        return [_to_call(d) async for d in cursor]
+        async with self.db.execute(
+            "SELECT * FROM calls WHERE status = ?",
+            (CallStatus.IN_PROGRESS.value,),
+        ) as cur:
+            rows = await cur.fetchall()
+            return [_row_to_call(r) for r in rows]
+
+    # ── Analytics ──────────────────────────────────────────────────────────────
 
     async def get_stats(self) -> dict:
-        total = await self.col.count_documents({})
-        completed = await self.col.count_documents(
-            {"status": CallStatus.COMPLETED.value}
-        )
-        active = await self.col.count_documents(
-            {"status": CallStatus.IN_PROGRESS.value}
-        )
-        pipeline = [
-            {"$match": {"duration_seconds": {"$exists": True, "$gt": 0}}},
-            {"$group": {"_id": None, "avg": {"$avg": "$duration_seconds"}}},
-        ]
-        agg = await self.col.aggregate(pipeline).to_list(1)
-        avg_dur = round(agg[0]["avg"], 1) if agg else 0.0
+        async with self.db.execute("SELECT COUNT(*) FROM calls") as cur:
+            total = (await cur.fetchone())[0]
+
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM calls WHERE status = ?",
+            (CallStatus.COMPLETED.value,),
+        ) as cur:
+            completed = (await cur.fetchone())[0]
+
+        async with self.db.execute(
+            "SELECT COUNT(*) FROM calls WHERE status = ?",
+            (CallStatus.IN_PROGRESS.value,),
+        ) as cur:
+            active = (await cur.fetchone())[0]
+
+        async with self.db.execute(
+            "SELECT AVG(duration_seconds) FROM calls WHERE duration_seconds > 0"
+        ) as cur:
+            row = await cur.fetchone()
+            avg_dur = round(row[0], 1) if row[0] else 0.0
 
         return {
             "total_calls": total,
@@ -91,7 +147,29 @@ class CallRepository:
             "avg_duration_seconds": avg_dur,
         }
 
-
-def _to_call(doc: dict) -> Call:
-    doc["_id"] = str(doc["_id"])
-    return Call(**doc)
+    async def get_daily_stats(self, days: int = 30) -> list[dict]:
+        """Return per-day call counts for the last `days` days."""
+        async with self.db.execute(
+            """
+            SELECT
+                strftime('%Y-%m-%d', start_time) AS day,
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+                ROUND(AVG(CASE WHEN duration_seconds > 0 THEN duration_seconds END), 1) AS avg_duration
+            FROM calls
+            WHERE start_time >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?)
+            GROUP BY day
+            ORDER BY day ASC
+            """,
+            (f"-{days} days",),
+        ) as cur:
+            rows = await cur.fetchall()
+            return [
+                {
+                    "day": r["day"],
+                    "total": r["total"],
+                    "completed": r["completed"] or 0,
+                    "avg_duration": r["avg_duration"] or 0.0,
+                }
+                for r in rows
+            ]

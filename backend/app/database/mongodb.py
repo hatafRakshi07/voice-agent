@@ -8,7 +8,12 @@ _db: AsyncIOMotorDatabase = None
 
 async def connect_db():
     global _client, _db
-    _client = AsyncIOMotorClient(settings.MONGODB_URL)
+    _client = AsyncIOMotorClient(
+        settings.MONGODB_URL,
+        serverSelectionTimeoutMS=5000,
+        connectTimeoutMS=5000,
+        socketTimeoutMS=5000,
+    )
     _db = _client[settings.MONGODB_DB_NAME]
 
     # Create indexes

@@ -8,22 +8,23 @@ export type CallStatus =
   | "no_answer";
 
 export interface Call {
-  _id?: string;
-  call_sid: string;
-  from_number: string;
-  to_number: string;
+  id?: number;
+  call_id: string;
+  phone_number: string;
+  direction: string;
   status: CallStatus;
+  voice_id?: string;
   start_time: string;
   end_time?: string;
-  duration_seconds?: number;
-  voice_id?: string;
+  duration_seconds: number;
+  recording_path?: string;
   summary?: string;
   turn_count: number;
 }
 
 export interface ConversationTurn {
-  _id?: string;
-  call_sid: string;
+  id?: number;
+  call_id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
@@ -32,7 +33,7 @@ export interface ConversationTurn {
 }
 
 export interface Conversation {
-  call_sid: string;
+  call_id: string;
   summary?: string;
   turns: ConversationTurn[];
 }
@@ -44,6 +45,23 @@ export interface DashboardStats {
   avg_duration_seconds: number;
 }
 
+export interface DailyStats {
+  day: string;
+  total: number;
+  completed: number;
+  avg_duration: number;
+}
+
+export interface CommonPhrase {
+  content: string;
+  frequency: number;
+}
+
+export interface Analytics {
+  daily: DailyStats[];
+  common_phrases: CommonPhrase[];
+}
+
 /** Local XTTS-v2 voice profile */
 export interface VoiceProfile {
   voice_id: string;
@@ -51,6 +69,7 @@ export interface VoiceProfile {
   description?: string;
   reference_wav?: string;
   sample_count?: number;
+  is_default?: boolean;
 }
 
 /** Realtime model status */
@@ -58,6 +77,12 @@ export interface ModelStatus {
   whisper: { ready: boolean; model: string; device: string };
   xtts: { ready: boolean };
   ollama: { ready: boolean; host: string; model: string; available_models: string[] };
+}
+
+export interface RecordingFile {
+  name: string;
+  size_bytes: number;
+  url: string;
 }
 
 // ── Whisper training ──────────────────────────────────────────────────────────
@@ -68,7 +93,7 @@ export interface TrainingJob {
   job_id: string;
   model_name: string;
   status: TrainingStatus;
-  progress: number;        // 0-100
+  progress: number;
   message: string;
   base_model?: string;
   language?: string;

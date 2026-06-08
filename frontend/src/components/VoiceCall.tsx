@@ -76,6 +76,8 @@ export default function VoiceCall({ voiceId, language = "en" }: Props) {
     isConnectedRef.current = false;
     audioQueueRef.current = [];
     isPlayingRef.current = false;
+    audioCtxRef.current?.close();
+    audioCtxRef.current = null;
     setStatus("idle");
     setCurrentToken("");
   }, [stopMic]);
@@ -257,10 +259,13 @@ export default function VoiceCall({ voiceId, language = "en" }: Props) {
         const chunk = e.data.data as Float32Array;
         setMicData(chunk);
 
-        // Encode as base64 and send
-        const b64 = btoa(
-          String.fromCharCode(...Array.from(new Uint8Array(chunk.buffer)))
-        );
+        // Encode as base64 and send (loop to avoid call-stack overflow on large buffers)
+        const bytes = new Uint8Array(chunk.buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = btoa(binary);
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "audio", data: b64, sample_rate: 16000 }));
         }

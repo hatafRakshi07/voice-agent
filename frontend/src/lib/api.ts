@@ -1,4 +1,7 @@
-import type { Call, Conversation, DashboardStats, VoiceProfile, ModelStatus, TrainingJob, TrainedModel } from "./types";
+import type {
+  Call, Conversation, DashboardStats, Analytics, VoiceProfile,
+  ModelStatus, TrainingJob, TrainedModel, RecordingFile,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -14,24 +17,33 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────────────────────
+// ─── Dashboard ────────────────────────────────────────────────────────────
 export const getStats = (): Promise<DashboardStats> =>
   apiFetch("/api/dashboard/stats");
 
-// ─── Calls ────────────────────────────────────────────────────────────────────────────────────
+export const getAnalytics = (days = 30): Promise<Analytics> =>
+  apiFetch(`/api/dashboard/analytics?days=${days}`);
+
+// ─── Calls ────────────────────────────────────────────────────────────────
 export const getCalls = (skip = 0, limit = 50): Promise<Call[]> =>
   apiFetch(`/api/calls?skip=${skip}&limit=${limit}`);
 
 export const getActiveCalls = (): Promise<Call[]> =>
   apiFetch("/api/calls/active");
 
-export const getCall = (callSid: string): Promise<Call> =>
-  apiFetch(`/api/calls/${callSid}`);
+export const getCall = (callId: string): Promise<Call> =>
+  apiFetch(`/api/calls/${callId}`);
 
-export const getConversation = (callSid: string): Promise<Conversation> =>
-  apiFetch(`/api/calls/${callSid}/conversation`);
+export const getConversation = (callId: string): Promise<Conversation> =>
+  apiFetch(`/api/calls/${callId}/conversation`);
 
-// ─── Voices (local XTTS) ─────────────────────────────────────────────────────────────────
+// ─── Recordings ───────────────────────────────────────────────────────────
+export const getRecordings = (
+  callId: string
+): Promise<{ call_id: string; files: RecordingFile[] }> =>
+  apiFetch(`/api/recordings/${callId}`);
+
+// ─── Voices (local XTTS) ─────────────────────────────────────────────────
 export const getVoices = (): Promise<{ voices: VoiceProfile[]; count: number }> =>
   apiFetch("/api/voices");
 
@@ -46,9 +58,8 @@ export function getVoiceSynthesizeUrl(
   text = "Hello! This is a test of your cloned voice. How does it sound?",
   language = "en"
 ): string {
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
   const params = new URLSearchParams({ text, language });
-  return `${base}/api/voices/${voiceId}/synthesize?${params}`;
+  return `${BASE}/api/voices/${voiceId}/synthesize?${params}`;
 }
 
 export async function cloneVoice(
@@ -69,10 +80,11 @@ export async function cloneVoice(
   return res.json();
 }
 
-// ─── Model status ─────────────────────────────────────────────────────────────────────────────────
+// ─── Model status ─────────────────────────────────────────────────────────
 export const getModelStatus = (): Promise<ModelStatus> =>
   apiFetch("/ws/status");
-// ─── Whisper training ────────────────────────────────────────────────────────────────────────────────────
+
+// ─── Whisper training ─────────────────────────────────────────────────────
 export async function startWhisperTraining(
   file: File,
   opts: {
@@ -116,3 +128,4 @@ export const activateTrainedModel = (
 
 export const deleteTrainedModel = (modelName: string): Promise<{ message: string }> =>
   apiFetch(`/api/training/whisper/models/${modelName}`, { method: "DELETE" });
+

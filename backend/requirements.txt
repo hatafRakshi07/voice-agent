@@ -4,9 +4,8 @@ python-dotenv==1.0.1
 pydantic==2.10.3
 pydantic-settings==2.6.1
 
-# Database
-motor==3.6.0
-pymongo==4.9.2
+# Database (SQLite — zero-config, no server needed)
+aiosqlite>=0.20.0
 
 # ── Local Speech-to-Text (Whisper) ──────────────────────────────────────────
 # faster-whisper: CTranslate2-based Whisper, runs on CPU (int8) or GPU
@@ -26,7 +25,7 @@ TTS>=0.22.0
 transformers==4.39.3
 
 # ── Audio processing ─────────────────────────────────────────────────────────
-numpy>=1.24.0
+numpy>=1.22.0
 soundfile>=0.12.1
 scipy>=1.11.0
 librosa>=0.10.0

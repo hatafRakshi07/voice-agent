@@ -126,8 +126,10 @@ class XTTSEngine:
                 "Coqui TTS not installed. Run: pip install TTS"
             ) from exc
 
+        # Auto-accept Coqui non-commercial license to avoid interactive prompt
+        os.environ.setdefault("COQUI_TOS_AGREED", "1")
         logger.info("[TTS] Loading XTTS-v2 model…")
-        self._tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2")
+        self._tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False)
         self._loaded = True
         logger.info("[TTS] XTTS-v2 ready ✓")
 

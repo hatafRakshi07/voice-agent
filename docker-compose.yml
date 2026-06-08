@@ -1,10 +1,22 @@
-version: "3.9"
+﻿# docker-compose.yml
+# ───────────────────
+# Fully-offline AI Voice Calling Agent
+#
+# Services:
+#   ollama   - Local LLM server (Llama 3 / Mistral / etc.)
+#   backend  - FastAPI + Whisper STT + Coqui XTTS + FastAGI server
+#   asterisk - Asterisk 20 PBX (SIP telephony)
+#   frontend - Next.js dashboard
+#   nginx    - Reverse proxy (HTTP + WebSocket)
+#
+# First-run steps:
+#   1. docker compose up -d ollama
+#   2. docker exec -it voice_agent_ollama ollama pull llama3
+#   3. docker compose up -d
 
 services:
 
-  # ── Ollama (local LLM server) ─────────────────────────────────────────────────
-  # Serves Llama3, Mistral, or any GGUF model locally.
-  # First run: docker exec -it voice_agent_ollama ollama pull llama3
+  # ── Ollama (local LLM) ────────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: voice_agent_ollama
@@ -13,7 +25,7 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    # Uncomment below to enable NVIDIA GPU passthrough:
+    # GPU (uncomment for NVIDIA):
     # deploy:
     #   resources:
     #     reservations:
@@ -22,24 +34,7 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
-  # ── MongoDB ───────────────────────────────────────────────────────────────────
-  mongo:
-    image: mongo:7
-    container_name: voice_agent_mongo
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_DATABASE: voice_agent
-    volumes:
-      - mongo_data:/data/db
-    ports:
-      - "27017:27017"
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # ── FastAPI Backend ───────────────────────────────────────────────────────────
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -48,28 +43,54 @@ services:
     restart: unless-stopped
     env_file:
       - path: ./backend/.env
-        required: false      # App works without .env (all defaults are local)
+        required: false
     environment:
-      - MONGODB_URL=mongodb://mongo:27017
       - OLLAMA_HOST=http://ollama:11434
+      - SQLITE_PATH=/app/data/voice_agent.db
+      - RECORDINGS_DIR=/app/recordings
       - WHISPER_MODEL=base
       - WHISPER_DEVICE=cpu
       - COQUI_TOS_AGREED=1
+      - FASTAGI_ENABLED=true
+      - FASTAGI_HOST=0.0.0.0
+      - FASTAGI_PORT=4573
     ports:
-      - "8000:8000"
+      - "8000:8000"   # FastAPI HTTP/WS
+      - "4573:4573"   # FastAGI (Asterisk connects here)
     depends_on:
-      mongo:
-        condition: service_healthy
-      ollama:
-        condition: service_started
+      - ollama
     volumes:
       - ./backend/logs:/app/logs
-      - ./backend/voices:/app/voices       # persist cloned voices
-      - ./backend/models:/app/models       # persist fine-tuned models
-      - whisper_cache:/root/.cache          # cache Whisper model download
-      - tts_cache:/root/.local/share/tts   # cache XTTS-v2 model download
+      - ./backend/voices:/app/voices
+      - ./backend/models:/app/models
+      - backend_data:/app/data           # SQLite database
+      - recordings:/app/recordings       # shared with Asterisk
+      - whisper_cache:/root/.cache
+      - tts_cache:/root/.local/share/tts
 
-  # ── Next.js Frontend ──────────────────────────────────────────────────────────
+  # ── Asterisk PBX ──────────────────────────────────────────────────────────
+  asterisk:
+    build:
+      context: ./telephony/asterisk
+      dockerfile: Dockerfile
+    container_name: voice_agent_asterisk
+    restart: unless-stopped
+    network_mode: host   # needed for RTP media to reach callers
+    volumes:
+      # Config files (read-only)
+      - ./telephony/asterisk/conf/asterisk.conf:/etc/asterisk/asterisk.conf:ro
+      - ./telephony/asterisk/conf/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./telephony/asterisk/conf/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./telephony/asterisk/conf/modules.conf:/etc/asterisk/modules.conf:ro
+      - ./telephony/asterisk/conf/logger.conf:/etc/asterisk/logger.conf:ro
+      # Recordings shared with backend
+      - recordings:/var/spool/asterisk/recording
+      # Asterisk logs
+      - asterisk_logs:/var/log/asterisk
+    depends_on:
+      - backend
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -84,7 +105,7 @@ services:
     depends_on:
       - backend
 
-  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────────
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     container_name: voice_agent_nginx
@@ -100,8 +121,9 @@ services:
       - frontend
 
 volumes:
-  mongo_data:
   ollama_data:
+  backend_data:
+  recordings:
+  asterisk_logs:
   whisper_cache:
   tts_cache:
-

@@ -1,14 +1,13 @@
-from pydantic import BaseModel, Field
-from datetime import datetime
+from pydantic import BaseModel
 from typing import Optional
 
 
 class VoiceProfile(BaseModel):
-    id: Optional[str] = Field(None, alias="_id")
-    name: str
+    id: Optional[int] = None
     voice_id: str
-    description: Optional[str] = None
+    name: str
+    description: str = ""
+    reference_wav: Optional[str] = None
+    sample_count: int = 0
     is_default: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    model_config = {"populate_by_name": True}
+    created_at: str = ""  # ISO-8601 string from SQLite
