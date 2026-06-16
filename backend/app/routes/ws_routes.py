@@ -132,7 +132,9 @@ async def get_status():
         "llm": llm_status,
         # ollama key preserved for backward compatibility with frontend
         "ollama": ollama_status,
-        "telephony_provider": settings.TELEPHONY_PROVIDER,
+        "telephony_provider": settings.TELEPHONY_PROVIDER
+            if settings.TELEPHONY_PROVIDER.lower() not in ("none", "", "browser")
+            else None,
         "vad": "silero" if settings.USE_SILERO_VAD else "webrtc",
     }
 

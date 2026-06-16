@@ -304,41 +304,52 @@ export default function VoiceCall({ voiceId, language = "en" }: Props) {
   const isListening = status === "listening";
   const isConnected = status !== "idle" && status !== "error";
 
+  const statusColor = {
+    idle: "bg-slate-600",
+    connecting: "bg-amber-400 animate-pulse",
+    listening: "bg-emerald-400",
+    processing: "bg-blue-400 animate-pulse",
+    thinking: "bg-violet-400 animate-pulse",
+    speaking: "bg-indigo-400",
+    error: "bg-red-400",
+  }[status];
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
 
       {/* ── Status bar ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="relative flex h-3 w-3">
+          <span className="relative flex h-2.5 w-2.5">
             {isConnected && (
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${
-                isActive ? "bg-indigo-400" : isListening ? "bg-emerald-400" : "bg-yellow-400"
-              }`} />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${statusColor.split(' ')[0]}`} />
             )}
-            <span className={`relative inline-flex rounded-full h-3 w-3 ${
-              isConnected
-                ? isActive ? "bg-indigo-400" : isListening ? "bg-emerald-400" : "bg-yellow-400"
-                : "bg-slate-600"
-            }`} />
+            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${statusColor}`} />
           </span>
-          <span className={`text-sm font-medium ${STATUS_COLORS[status]}`}>
+          <span className={`text-sm font-semibold ${STATUS_COLORS[status]}`}>
             {STATUS_LABELS[status]}
           </span>
+          {status === "thinking" && (
+            <div className="flex items-center gap-1 ml-1">
+              <div className="thinking-dot" />
+              <div className="thinking-dot" />
+              <div className="thinking-dot" />
+            </div>
+          )}
         </div>
 
         {isConnected && (
           <button
             onClick={interruptAI}
-            className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-700 hover:border-slate-500 rounded-lg px-3 py-1"
+            className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-700/60 hover:border-slate-500 rounded-lg px-3 py-1.5 bg-slate-900/40 hover:bg-slate-800/60"
           >
-            Interrupt
+            ⏹ Interrupt
           </button>
         )}
       </div>
 
       {/* ── Waveform ── */}
-      <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-4">
+      <div className="rounded-2xl overflow-hidden border border-slate-800/60 bg-slate-950/60">
         <WaveformVisualizer
           isActive={isActive}
           isListening={isListening}
@@ -351,9 +362,8 @@ export default function VoiceCall({ voiceId, language = "en" }: Props) {
         {!isConnected ? (
           <button
             onClick={startCall}
-            className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="voice-call-btn-start flex items-center gap-3 px-8 py-3.5 rounded-2xl font-semibold text-white"
           >
-            {/* Mic icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/>
               <path d="M19 10v2a7 7 0 01-14 0v-2"/>
@@ -365,11 +375,10 @@ export default function VoiceCall({ voiceId, language = "en" }: Props) {
         ) : (
           <button
             onClick={disconnect}
-            className="flex items-center gap-3 px-8 py-4 rounded-2xl font-semibold text-white bg-red-600/80 hover:bg-red-600 border border-red-500/40 shadow-lg shadow-red-500/20 transition-all duration-200 hover:scale-105 active:scale-95"
+            className="voice-call-btn-stop flex items-center gap-3 px-8 py-3.5 rounded-2xl font-semibold text-white"
           >
-            {/* Stop icon */}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="4" y="4" width="16" height="16" rx="3"/>
             </svg>
             End Conversation
           </button>
@@ -378,21 +387,25 @@ export default function VoiceCall({ voiceId, language = "en" }: Props) {
 
       {/* Error message */}
       {errorMsg && (
-        <div className="bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-sm text-red-300">
+        <div className="error-strip px-4 py-3 text-sm text-red-300 flex items-start gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
           {errorMsg}
         </div>
       )}
 
       {/* ── Streaming token preview ── */}
       {currentToken && status === "thinking" && (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-400 italic">
+        <div className="bg-violet-950/30 border border-violet-800/40 rounded-xl px-4 py-3 text-sm text-slate-400 italic leading-relaxed">
+          <span className="text-violet-400 not-italic font-medium text-xs uppercase tracking-wider mr-2">Nova:</span>
           {currentToken}
-          <span className="animate-pulse">▋</span>
+          <span className="inline-block w-0.5 h-4 bg-violet-400 animate-pulse ml-0.5 align-middle" />
         </div>
       )}
 
       {/* ── Conversation history ── */}
-      <div className="h-80 overflow-y-auto rounded-2xl bg-slate-900/40 border border-slate-800 p-4 scroll-smooth">
+      <div className="h-72 overflow-y-auto rounded-2xl bg-slate-950/50 border border-slate-800/60 p-4 scroll-smooth">
         <ConversationHistory turns={turns} />
       </div>
 

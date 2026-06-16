@@ -103,11 +103,14 @@ export default function VoiceUploader({ onSuccess, onCancel }: Props) {
           </label>
           <div
             onClick={() => inputRef.current?.click()}
-            className={`drop-zone rounded-xl p-6 text-center cursor-pointer transition-all duration-200${files.length > 0 ? " has-files" : ""}`}
-            onMouseLeave={(e) => {
-              if (files.length === 0)
-                (e.currentTarget as HTMLDivElement).style.borderColor = "";
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("has-files"); }}
+            onDragLeave={(e) => { if (!files.length) e.currentTarget.classList.remove("has-files"); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("audio/"));
+              if (dropped.length) setFiles(dropped);
             }}
+            className={`drop-zone rounded-xl p-6 text-center cursor-pointer transition-all duration-200${files.length > 0 ? " has-files" : ""}`}
           >
             {files.length === 0 ? (
               <div>

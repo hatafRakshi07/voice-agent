@@ -80,6 +80,11 @@ async def _start_telephony_provider() -> None:
     """Start the configured telephony provider."""
     provider_name = settings.TELEPHONY_PROVIDER.lower().strip()
 
+    # "none" = browser-only mode, no telephony hardware needed
+    if provider_name in ("none", "", "browser"):
+        logger.info("[STARTUP] Telephony provider: browser-only mode (no hardware)")
+        return
+
     try:
         if provider_name == "android":
             from app.telephony.android_gateway_provider import AndroidGatewayProvider  # noqa: PLC0415
