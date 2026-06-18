@@ -8,10 +8,10 @@ interface Props {
 }
 
 const dots: Record<string, string> = {
-  indigo:  "bg-indigo-400",
-  sky:     "bg-sky-400",
-  emerald: "bg-emerald-400",
-  violet:  "bg-violet-400",
+  indigo:  "bg-[#E40443]",
+  sky:     "bg-blue-500",
+  emerald: "bg-green-500",
+  violet:  "bg-amber-500",
 };
 
 export default function StatsCard({ title, value, icon, accent, pulse, loading }: Props) {
@@ -28,14 +28,14 @@ export default function StatsCard({ title, value, icon, accent, pulse, loading }
 
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-3">
             {title}
           </p>
           {loading ? (
             <div className="skeleton h-9 w-24 rounded-lg" />
           ) : (
             <div className="flex items-end gap-2">
-              <span className="text-3xl font-extrabold text-white leading-none tabular-nums">
+              <span className="text-3xl font-extrabold text-gray-900 leading-none tabular-nums">
                 {value}
               </span>
               {pulse && (

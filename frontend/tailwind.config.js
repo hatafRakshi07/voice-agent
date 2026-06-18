@@ -4,11 +4,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        scene: "#020817",
+        scene: "#f5f5f5",
+        primary: {
+          DEFAULT: "#E40443",
+          hover:   "#c00338",
+          light:   "rgba(228,4,67,0.10)",
+        },
         surface: {
-          DEFAULT: "#0b1121",
-          2: "#111827",
-          3: "#1a2236",
+          DEFAULT: "#ffffff",
+          2: "#f9fafb",
+          3: "#f3f4f6",
+        },
+        dark: {
+          DEFAULT: "#140609",
+          2:       "#1e0a0e",
         },
       },
       fontFamily: {
@@ -27,19 +36,21 @@ module.exports = {
           from: { backgroundPosition: "-200% center" },
           to:   { backgroundPosition: "200% center" },
         },
+        pulse2: {
+          "0%, 100%": { opacity: "1" },
+          "50%":      { opacity: "0.4" },
+        },
       },
       animation: {
         "fade-up":  "fade-up 0.45s cubic-bezier(.22,1,.36,1) both",
         "scale-in": "scale-in 0.3s cubic-bezier(.22,1,.36,1) both",
         shimmer:    "shimmer 1.6s linear infinite",
+        pulse2:     "pulse2 2s ease-in-out infinite",
       },
       backgroundImage: {
-        "grad-brand":
-          "linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #38bdf8 100%)",
-        "grad-blue":
-          "linear-gradient(135deg, #818cf8 0%, #38bdf8 100%)",
-        "grad-indigo-sky":
-          "linear-gradient(135deg, rgba(129,140,248,0.35) 0%, rgba(56,189,248,0.25) 100%)",
+        "grad-brand":  "linear-gradient(135deg, #E40443 0%, #ff6b9d 100%)",
+        "grad-dark":   "linear-gradient(135deg, #140609 0%, #2a0c14 100%)",
+        "grad-light":  "linear-gradient(135deg, #fff5f7 0%, #ffffff 100%)",
       },
     },
   },

@@ -121,3 +121,109 @@ export interface TrainedModel {
   job_id: string;
 }
 
+// ── AI-Voice-Agent types ──────────────────────────────────────────────────────
+
+export type AgentPersonality = 'professional' | 'friendly' | 'empathetic' | 'assertive' | 'casual';
+export type AgentStatus = 'active' | 'inactive' | 'training';
+export type ResponseStyle = 'concise' | 'detailed' | 'conversational';
+
+export interface Agent {
+  id: string;
+  name: string;
+  description: string;
+  greetingMessage: string;
+  personality: AgentPersonality;
+  language: string;
+  temperature: number;
+  voiceId: string;
+  voiceName: string;
+  responseStyle: ResponseStyle;
+  status: AgentStatus;
+  totalCalls: number;
+  successRate: number;
+  avgResponseTime: number;
+  createdAt: string;
+  updatedAt: string;
+  promptTemplate?: string;
+}
+
+export type CallDirection = 'incoming' | 'outgoing';
+export type CallLogStatus = 'answered' | 'missed' | 'rejected' | 'active';
+export type CallSentiment = 'positive' | 'neutral' | 'negative';
+
+export interface TranscriptMessage {
+  id: string;
+  speaker: 'customer' | 'ai';
+  text: string;
+  timestamp: string;
+  confidence?: number;
+  latencyMs?: number;
+}
+
+export interface CallLog {
+  id: string;
+  agentId: string;
+  agentName: string;
+  callerName: string;
+  callerNumber: string;
+  direction: CallDirection;
+  status: CallLogStatus;
+  startTime: string;
+  endTime?: string;
+  durationSeconds: number;
+  transcript: TranscriptMessage[];
+  summary?: string;
+  sentiment?: CallSentiment;
+  aiResponseAccuracy?: number;
+}
+
+export type DocType = 'pdf' | 'docx' | 'txt' | 'url' | 'faq';
+export type DocStatus = 'indexed' | 'processing' | 'failed';
+
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  type: DocType;
+  status: DocStatus;
+  sizeKB: number;
+  chunkCount?: number;
+  embeddingCount?: number;
+  url?: string;
+  uploadedAt: string;
+  agentIds: string[];
+}
+
+export type NotificationType = 'incoming_call' | 'missed_call' | 'transcript' | 'agent_status' | 'error';
+
+export interface NotificationItem {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  timestamp: string;
+}
+
+export interface DailyCallStats {
+  date: string;
+  totalCalls: number;
+  answeredCalls: number;
+  missedCalls: number;
+  avgDurationSeconds: number;
+}
+
+export interface AnalyticsSummary {
+  totalCalls: number;
+  answeredCalls: number;
+  missedCalls: number;
+  avgDurationSeconds: number;
+  avgResponseTimeMs: number;
+  aiAccuracy: number;
+  positiveSentiment: number;
+  neutralSentiment: number;
+  negativeSentiment: number;
+  daily: DailyCallStats[];
+  topFAQs: { question: string; count: number }[];
+  totalMinutesTalked: number;
+}
+

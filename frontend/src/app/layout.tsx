@@ -3,8 +3,8 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Self-Hosted AI Voice Agent",
-  description: "Offline AI voice agent — Whisper + Ollama + XTTS-v2",
+  title: "VoiceAgent — AI Calling Platform",
+  description: "AI Voice Agent Platform — Whisper STT, Ollama LLM, XTTS-v2 | Indian Business Suite",
 };
 
 export default function RootLayout({
@@ -18,7 +18,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="flex h-full overflow-hidden bg-scene text-slate-200 font-sans">
+      <body className="flex h-full overflow-hidden bg-[#f5f5f5] text-gray-900 font-sans">
         <Sidebar />
         <main className="flex-1 overflow-y-auto bg-scene">{children}</main>
       </body>
